@@ -1,0 +1,19 @@
+#root {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 2rem;
+  text-align: center;
+}
+.editor-container {
+  overflow: auto;
+  min-height: 350px;
+  border: 1px solid #ccc;
+  padding: 10px;
+  text-align: left;
+  background-color: black;
+}
+
+.cm-editor {
+  height: 100%;
+  width: 100%;
+}

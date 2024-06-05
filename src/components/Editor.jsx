@@ -1,107 +1,107 @@
-import React, { useState, useEffect, useRef } from "react";
-import { useStore } from "../store";
+import React, { useEffect, useRef, useState } from "react";
+import * as Y from "yjs";
+import { WebsocketProvider } from "y-websocket";
+import { yCollab } from "y-codemirror.next";
 import { EditorView, basicSetup } from "codemirror";
+import { EditorState } from "@codemirror/state";
 import { javascript } from "@codemirror/lang-javascript";
-import { oneDark } from "@codemirror/theme-one-dark";
-import io from "socket.io-client";
+import * as random from "lib0/random";
 import { Stack, Paper } from "@mui/material";
-import "../App.css";
 
-const Editor = () => {
-  const [users, setUsers] = useState([]);
-  const { username, roomId } = useStore((state) => ({
-    username: state.username,
-    roomId: state.roomId,
-  }));
+export const usercolors = [
+  { color: "#30bced", light: "#30bced33" },
+  { color: "#6eeb83", light: "#6eeb8333" },
+  { color: "#ffbc42", light: "#ffbc4233" },
+  { color: "#ecd444", light: "#ecd44433" },
+  { color: "#ee6352", light: "#ee635233" },
+  { color: "#9ac2c9", light: "#9ac2c933" },
+  { color: "#8acb88", light: "#8acb8833" },
+  { color: "#1be7ff", light: "#1be7ff33" },
+];
+
+export const userColor = usercolors[random.uint32() % usercolors.length];
+
+const Editor = ({ roomId, userName }) => {
   const editorRef = useRef(null);
-  const viewRef = useRef(null);
-  const socketRef = useRef(null);
-  const lastCodeSentByMe = useRef("");
+  const [users, setUsers] = useState([]);
 
   useEffect(() => {
-    socketRef.current = io("http://localhost:3001/", {
-      transports: ["websocket"],
+    const ydoc = new Y.Doc();
+    const provider = new WebsocketProvider(
+      `http://localhost:1234/?roomId=${roomId}`,
+      roomId,
+      ydoc
+    );
+    const ytext = ydoc.getText("codemirror");
+    const undoManager = new Y.UndoManager(ytext);
+
+    provider.awareness.setLocalStateField("user", {
+      name: userName,
+      color: userColor.color,
+      colorLight: userColor.light,
     });
 
-    if (editorRef.current) {
-      viewRef.current = new EditorView({
-        doc: "",
-        extensions: [
-          basicSetup,
-          javascript(),
-          oneDark,
-          EditorView.updateListener.of((update) => {
-            if (update.docChanged) {
-              const newCode = update.state.doc.toString();
-              lastCodeSentByMe.current = newCode;
-              socketRef.current.emit("CODE_CHANGED", {
-                code: newCode,
-                username,
-              });
-            }
-          }),
-        ],
-        parent: editorRef.current,
-      });
-    }
-
-    const socket = socketRef.current;
-
-    socket.on("CODE_CHANGED", ({ code, sender }) => {
-      if (
-        sender !== username &&
-        viewRef.current &&
-        code !== lastCodeSentByMe.current
-      ) {
-        viewRef.current.dispatch({
-          changes: {
-            from: 0,
-            to: viewRef.current.state.doc.length,
-            insert: code,
-          },
-        });
-      }
-    });
-
-    socket.on("connect_error", (err) => {
-      console.log(`connect_error due to ${err.message}`);
-    });
-
-    socket.on("connect", () => {
-      socket.emit("CONNECTED_TO_ROOM", { roomId, username });
-    });
-
-    socket.on("disconnect", () => {
-      socket.emit("DISCONNECT_FROM_ROOM", { roomId, username });
-    });
-
-    socket.on("ROOM:CONNECTION", (users) => {
+    const updateUsers = () => {
+      const awarenessStates = Array.from(
+        provider.awareness.getStates().values()
+      );
+      const users = awarenessStates
+        .map((state) => state.user)
+        .filter((user) => user);
       setUsers(users);
-      console.log(users);
+    };
+
+    provider.awareness.on("change", updateUsers);
+
+    const state = EditorState.create({
+      doc: ytext.toString(),
+      extensions: [
+        basicSetup,
+        javascript(),
+        yCollab(ytext, provider.awareness, { undoManager }),
+      ],
     });
 
+    const view = new EditorView({ state, parent: editorRef.current });
+
+    // Cleanup function
     return () => {
-      socket.emit("DISCONNECT_FROM_ROOM", { roomId, username });
-      socket.disconnect();
-      if (viewRef.current) {
-        viewRef.current.destroy();
-      }
+      provider.awareness.setLocalStateField("user", null);
+      view.destroy();
+      provider.disconnect();
     };
-  }, [roomId, username]);
+  }, [roomId, userName]);
 
   return (
-    <>
+    <div>
       <Stack
         direction={{ xs: "column", sm: "row" }}
         spacing={{ xs: 1, sm: 2, md: 4 }}
+        style={{ flex: "display", alignItems: "spaceBetween" }}
       >
-        <Paper>Your username is: {username}</Paper>
+        <Paper>Your username is: {userName}</Paper>
         <Paper>The room ID is: {roomId}</Paper>
         <Paper> How many people are connected: {users.length}</Paper>
       </Stack>
 
-      <div ref={editorRef} className="editor-container" />
-    </>
+      <ul>
+        {users.map((user, index) => (
+          <li key={index} style={{ color: user.color }}>
+            {user.name}
+          </li>
+        ))}
+      </ul>
+
+      <div
+        ref={editorRef}
+        style={{
+          maxHeight: "450px",
+          overflowY: "scroll",
+          minHeight: "400px",
+          backgroundColor: "#E7EFF2",
+        }}
+      />
+    </div>
   );
 };
 

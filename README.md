@@ -22,8 +22,8 @@ This project is a collaborative code editor built using React, Yjs, CodeMirror 6
 1. Clone the repository:
 
    ```bash
-   git clone https://github.com/yourusername/collaborative-code-editor.git
-   cd collaborative-code-editor
+   git clone https://github.com/Aseem22/Code-collab.git
+   cd Code-collab
 
 2. Install the dependencies
 

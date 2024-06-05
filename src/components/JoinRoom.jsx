@@ -1,10 +1,9 @@
-// RoomSelector.js
 import React, { useState } from "react";
 import { v4 as uuidv4 } from "uuid";
 import Editor from "./Editor";
 import { TextField, Button } from "@mui/material";
 
-const RoomSelector = () => {
+const JoinRoom = () => {
   const [roomId, setRoomId] = useState("");
   const [userName, setUserName] = useState("");
   const [joined, setJoined] = useState(false);
@@ -63,4 +62,4 @@ const RoomSelector = () => {
   );
 };
 
-export default RoomSelector;
+export default JoinRoom;
